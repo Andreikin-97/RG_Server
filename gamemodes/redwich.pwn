@@ -90,8 +90,8 @@ ______________________________________________________________________ */
 #define     YELLOW    		"{FFFF00}"
 
 // Клисты для фракции
-#define 	cNone 			0xFFFFFF15 // None
-#define 	cfNone         	"{F0F0F0}"
+#define 	cNone 			0xFFFFFF // None
+#define 	cfNone         	"{FFFFFF}"
 #define 	cAO 			0xFAEB6C90 // 1 - АДМИНСИТРАЦИЯ ОБЛАСТИ
 #define 	cfAO         	"{FAEB6C}"
 #define 	cPPS 			0x0B3BDB90 // 2 - ППС
@@ -608,6 +608,9 @@ enum // Диалоги
 	// PIN
 	dCreatePinCone, //
 	dSettingPinCone, //
+	dSettingPinUpdate, // 
+	dSettingPinUpdateNew, // 
+	dSettingPinDelete, // 
 	// VK
 	dMenuSettingVK, //
 	dSettingVK_ID, //
@@ -1333,7 +1336,6 @@ Text3D: infoFracSkin[MAX_FRAC], // Текст раздевалки в организацию (Раздевалка)
 Text3D: infoFracGun[MAX_FRAC], // Текст оружейной в организацию (Оружейная)
 
 Text3D: infoLoadGun[MAX_FRAC], // Текст загрузки материалов в организации (Загрузка)
-
 
 FracColor[MAX_FRAC] = // Цвета
 {
@@ -9824,7 +9826,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 						strcat(string, ""SERVER"1.{FFFFFF} Изменить пароль\n");
 						format(str, sizeof(str), ""SERVER"2.{ffffff} Графический "SERVER"PIN"WHITE" код\t%s\n", (!AcI[playerid][acPinCode]) ? ("{F04245}Не установлен") : ("{63BD4E}Установлен")); strcat(string, str);
 						format(str, sizeof(str), ""SERVER"3.{ffffff} Привязка "BLUE"ВКонтакте"WHITE"\t%s\n", AcI[playerid][acVkID]); strcat(string, str);
-						format(str, sizeof(str), ""SERVER"4.{ffffff} Защита Google Authenticator\t%s\n", (!AcI[playerid][acStatusGoogle]) ? ("{F04245}Отключена") : ("{63BD4E}Включена")); strcat(string, str);
+						format(str, sizeof(str), ""SERVER"4.{ffffff} Google Authenticator\t%s\n", (!AcI[playerid][acStatusGoogle]) ? ("{F04245}Отключена") : ("{63BD4E}Включена")); strcat(string, str);
 						strcat(string, ""SERVER"4.{FFFFFF} Сменить почту\n");
 						SPD(playerid, dMenuSettingUser, d_tlisth, ""WHITE"Настройки | "SERVER"Настройки безопасности", string, "Выбрать", "<< Назад");
 						return 1;
@@ -10035,10 +10037,79 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(!response) return 1;
 			{
+				switch(listitem)
+				{
+					case 0: // Сменить PIN код
+					{
+						SPD(playerid, dSettingPinUpdate, d_input, "\
+							Смена графического PIN кода", "{FFFFFF}Укажите свой текущий "SERVER"графический PIN код{FFFFFF} для его смены.", "Указать", "< Назад");
+					}
+					case 1: // Удалить PIN код
+					{
+						SPD(playerid, dSettingPinDelete, d_input, "\
+							Удаление графического PIN кода", "{FFFFFF}Укажите свой текущий "SERVER"графический PIN код{FFFFFF} для его удаления.", "Указать", "< Назад");
+					}
+				}
+			}
+		}		
+		case dSettingPinUpdate: // Сменить PIN код
+		{
+			if(!response) 
+			{
+				return SPD(playerid, dSettingPinCone, d_list, ""SERVER"Управление графическим PIN кодом", ""WHITE"\
+					"SERVER"1.{FFFFFF} Сменить PIN код\n\
+					"SERVER"2.{FFFFFF} Удалить PIN код\n\
+					"SERVER"3.{FFFFFF} Запрашивать PIN код: \n",
+				"Выбрать", "<< Назад");
+			}
+			else 
+			{
+				new string[254], pin = strval(inputtext), PINError = SetPVarInt(playerid, "PINError", 3);
+				if(pin != AcI[playerid][acPinCode]) 
+				{
+					PINError --;
+				
+					string_f("{FFFFFF}Укажите свой текущий "SERVER"графический PIN код{FFFFFF} для его смены.\n\n\
+						{FF0000}[Ошибка] {FFFFFF}Вы указали неверный графический PIN код!\n\
+						"SERVER"Попыток осталось: %i из 3.", PINError); 
+					return SPD(playerid, dSettingPinUpdate, d_input, "Смена графического PIN кода", string, "Указать", "< Назад");
+				}
+				DeletePVar(playerid, "PINError");
+				SPD(playerid, dSettingPinUpdateNew, d_input, "Смена графического PIN кода", "", "Указать", "< Назад");
+			}
+		} 
+		case dSettingPinUpdateNew: // Указать новый графический PIN код
+		{
+			if(!response) 
+			{
+				// 
+				return 1;
+			}
+			else
+			{
 
 			}
 		}
-		case dMenuSettingVK: //
+		case dSettingPinDelete: // Удалить PIN код
+		{ 
+			if(!response) 
+			{
+				return SPD(playerid, dSettingPinCone, d_list, ""SERVER"Управление графическим PIN кодом", ""WHITE"\
+					"SERVER"1.{FFFFFF} Сменить PIN код\n\
+					"SERVER"2.{FFFFFF} Удалить PIN код\n\
+					"SERVER"3.{FFFFFF} Запрашивать PIN код: \n",
+				"Выбрать", "<< Назад");
+			}
+			else 
+			{
+				new pin = strval(inputtext);
+				if(pin != AcI[playerid][acPinCode]) 
+				{
+
+				}
+			}
+		}
+		case dMenuSettingVK: // 
 		{
 			if(!response) return 1;
 			{
@@ -18396,11 +18467,20 @@ stock LoadPlayersMesage(playerid)
 	}
     else DialogPlayerSpawn(playerid);
 
+	if(!AcI[playerid][acStatusPin])
+	{
+		SCM(playerid, -1, " ");
+	    SCM(playerid, cSERVER, "Система: Внимание! У Вас не устоновлен PIN-код!");
+	    SCM(playerid, cSERVER, "Система: Для защиты своего аккаунта устоновите PIN-код - (/mn > Настройки аккаунта > Настройки безопасности > Графический PIN код)");
+		SCM(playerid, -1, " ");
+	}
+
 	if(!AcI[playerid][acStatusGoogle])
 	{
 		SCM(playerid, -1, " ");
-	    SCM(playerid, cSERVER, "Система: Внимание! У Вас не устоновлен защитный код.");
-	    SCM(playerid, cSERVER, "Система: Для защиты своего аккаунта устоновите защитный код - (/mn > Безопасность аккаунта > Код безопасности)");
+	    SCM(playerid, cSERVER, "Система: Внимание! У Вас не устоновлен Google Authenticator.");
+	    SCM(playerid, cSERVER, "Система: Для защиты своего аккаунта устоновите Google Authenticator!");
+	    SCM(playerid, cSERVER, "Система: /mn > Настройки аккаунта > Настройки безопасности > Google Authenticator");
 		SCM(playerid, -1, " ");
 	}
 
